@@ -53,3 +53,44 @@ def get_record_metadata(record, field_no, subfields, restraint=[]):
                         else:
                             res += sub.get_subfields(subfields[0])[0]
         return res
+
+def clean_first_word(s):
+    #Regex for cleaning title statement
+    return re.sub(r'^\x98(\S+)\x9c', r'\1', s)
+def roman_to_int(s):
+    # converts roman numerals to int
+    roman_values = {
+    'I': 1, 'V': 5, 'X': 10, 'L': 50,
+    'C': 100, 'D': 500, 'M': 1000
+    }
+    total = 0
+    prev = 0
+    for c in reversed(s):
+        val = roman_values[c]
+        if val < prev:
+            total -= val
+        else:
+            total += val
+        prev = val
+    return total
+def extract_roman_numerals(s):
+    # extracts roman numerals of a string and converts to int, if none are found returns 0
+    num = re.search(r'\b[IVXLCDM]+\b', s)
+    if not num:
+        return 0
+    else:
+        return roman_to_int(num.group(0))
+def get_pages(s):
+    # gets pages based on if number is followed by 'S.' or 'Seiten'
+    s = s.replace("[", "").replace("]", "")
+    match = re.search(r'(\d+)\s+(?:S\.|Seiten|Bl\.)', s)
+    if match:
+        return int(match.group(1))
+    else:
+        return 0
+def get_date(s):
+    match = re.search(r'\b\d{4}\b', s)
+    if match:
+        return(int(match.group()))
+    else:
+        return 0
