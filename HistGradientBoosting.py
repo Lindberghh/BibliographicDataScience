@@ -12,9 +12,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import FunctionTransformer
 import numpy as np
+# Runs Randomized SearchCV on RandomForestClassifier given a dataset transformed by DataPipeline.py
 
-
-preprocessor = joblib.load("data/preprocessor.joblib")
+preprocessor = joblib.load("data/preprocessor_new.joblib")
 
 target = ["gnd Genre"]
 
@@ -29,30 +29,28 @@ hist_class = HistGradientBoostingClassifier(
         random_state=67)
 
 
-pipeline = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', hist_class,)
-])
 # make parameter grid
 param_dist = {
-    "classifier__learning_rate": np.linspace(0.01, 0.1, 10),
-    "classifier__max_leaf_nodes": np.arange(15, 64, 16),
-    "classifier__min_samples_leaf": [10, 20, 50]
+    "learning_rate": np.linspace(0.01, 0.1, 10),
+    "max_leaf_nodes": np.arange(15, 64, 16),
+    "min_samples_leaf": [10, 20, 50],
+    "max_iter": [100, 200, 300, 400, 500, 600, 700]
 }
 # grid search, look for best weighted f1 score
 random_search = RandomizedSearchCV(
-    estimator=pipeline,
+    estimator=hist_class,
     param_distributions=param_dist,
-    n_iter=5,
+    n_iter=60,
     cv=5,
-    scoring="f1_weighted",
+    scoring="f1_macro",
     #n_jobs=-1,
     verbose=2,
     error_score='raise',
     random_state=67
 )
-# fit
+# set dataset
 df = pd.read_csv('data/converted_data/b3_final_ger', sep=';')
+# sample of the dataset if needed, computation is expensive
 subset = df.groupby('gnd Genre', group_keys=False).sample(frac=0.1, random_state=67)
 
 X = subset[["Publisher", "Title Statement", "Author", "gnd Topical Term", "Date", "Number of Pages"]].fillna("")
@@ -64,7 +62,8 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=67,
     stratify=y
 )
-random_search.fit(X_train, y_train)
+X_preprocessed = preprocessor.transform(X_train)
+random_search.fit(X_preprocessed, y_train)
 # best results
 print("Best parameters:", random_search.best_params_)
 print("Best CV score:", random_search.best_score_)

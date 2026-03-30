@@ -8,7 +8,8 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 import joblib
 
-df = pd.read_csv('data/converted_data/b3_final_ger', sep=';')
+# given dataset, preprocesses all data for classification model, saves the preprocessor
+df = pd.read_csv('data/converted_data/b3_new')
 numerical_features = [
     "Number of Pages",
     "Date"
@@ -22,7 +23,7 @@ text_features = [
 ]
 
 german_stop_words = stopwords.words('german')
-subset = df.groupby('gnd Genre', group_keys=False).sample(frac=0.1, random_state=67)
+subset = df.groupby('gnd Genre', group_keys=False).sample(frac=1.0, random_state=67)
 
 X = subset[["Publisher", "Title Statement", "Author", "gnd Topical Term", "Date", "Number of Pages"]].fillna("")
 y = subset['gnd Genre']
@@ -33,33 +34,31 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=67,
     stratify=y
 )
+# preprocessing timeline title, topic, publisher -> TFIDF + SVD
 preprocessor = ColumnTransformer(
     transformers=[
-        # Title Statement: TF-IDF → SVD
         (
-            "title_svd",
-            Pipeline([
-                ("tfidf", TfidfVectorizer(
-                    max_features=20000,
-                    stop_words=german_stop_words,
-                    ngram_range=(1,2),
-                    min_df=10,
-                    max_df=0.9
-                )),
-                ("svd", TruncatedSVD(n_components=200, random_state=67))
-            ]),
-            "Title Statement"
-        ),
-        # gnd Topical Term: TF-IDF → SVD
-        (
-            "topic_svd",
-            Pipeline([
-                ("tfidf", TfidfVectorizer(max_features=10000, min_df=10, max_df=0.9)),
-                ("svd", TruncatedSVD(n_components=100, random_state=67))
-            ]),
-            "gnd Topical Term"
-        ),
-        # Place: TF-IDF → SVD
+             "title_svd",
+             Pipeline([
+                 ("tfidf", TfidfVectorizer(
+                     max_features=40000,
+                     stop_words=german_stop_words,
+                     ngram_range=(1,2),
+                     min_df=10,
+                     max_df=0.9
+                 )),
+                 ("svd", TruncatedSVD(n_components=400, random_state=67))
+             ]),
+             "Title Statement"
+         ),
+         (
+             "topic_svd",
+             Pipeline([
+                 ("tfidf", TfidfVectorizer(max_features=10000, min_df=10, max_df=0.9)),
+                 ("svd", TruncatedSVD(n_components=100, random_state=67))
+             ]),
+             "gnd Topical Term"
+          ),
         (
             "publisher_svd",
             Pipeline([
@@ -78,4 +77,4 @@ preprocessor = ColumnTransformer(
     n_jobs=-1
 )
 preprocessor.fit(X_train)
-joblib.dump(preprocessor, "data/preprocessor.joblib")
+joblib.dump(preprocessor, "data/preprocessor_new_no_title_no_topic.joblib")

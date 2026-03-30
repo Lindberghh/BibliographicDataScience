@@ -11,8 +11,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import FunctionTransformer
 import numpy as np
 
-
-preprocessor = joblib.load("data/preprocessor.joblib")
+# Runs Randomized SearchCV on DecisionTree given a dataset transformed by DataPipeline.py
+preprocessor = joblib.load("data/preprocessor_new_")
 
 target = ["gnd Genre"]
 
@@ -27,31 +27,29 @@ decision_tree = DecisionTreeClassifier(
         random_state=67
 )
 
-
-pipeline = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', decision_tree,)
-])
 # make parameter grid
 param_dist = {
-    "classifier__max_depth": [10, 15, 20],
-    "classifier__min_samples_leaf": [5, 10, 20],
-    "classifier__min_samples_split": [2, 5, 10, 20]
+    "max_depth": [5, 10, 20],
+    "min_samples_leaf": [5, 10, 20],
+    "min_samples_split": [2, 5, 10, 20],
+    "max_features": ["sqrt", "log", None]
+
 }
 # grid search, look for best weighted f1 score
 random_search = RandomizedSearchCV(
-    estimator=pipeline,
+    estimator=decision_tree,
     param_distributions=param_dist,
-    n_iter=3,
-    cv=3,
-    scoring="f1_weighted",
+    n_iter=60,
+    cv=5,
+    scoring="f1_macro",
     #n_jobs=-1,
     verbose=2,
     error_score='raise',
     random_state=67
 )
-# fit
-df = pd.read_csv('data/converted_data/b3_final_ger', sep=';')
+# get data
+df = pd.read_csv('data/converted_data/b3_new')
+# sample of the dataset if needed, computation is expensive
 subset = df.groupby('gnd Genre', group_keys=False).sample(frac=0.1, random_state=67)
 
 X = subset[["Publisher", "Title Statement", "Author", "gnd Topical Term", "Date", "Number of Pages"]].fillna("")
@@ -63,7 +61,8 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=67,
     stratify=y
 )
-random_search.fit(X_train, y_train)
+X_processed = preprocessor.transform(X_train)
+random_search.fit(X_processed, y_train)
 # best results
 print("Best parameters:", random_search.best_params_)
 print("Best CV score:", random_search.best_score_)
